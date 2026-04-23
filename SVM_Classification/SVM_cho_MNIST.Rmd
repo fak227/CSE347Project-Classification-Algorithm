@@ -1,0 +1,144 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+# Load necessary libraries
+library(caret)
+library(e1071)
+library(pROC)
+library(MLmetrics) # For F1_Score and AUC
+
+#read data
+# LOAD AND PREP DATA
+cho <- read.table("cho.txt", header=FALSE)
+
+# Rename and Clean
+colnames(cho)[1:2] <- c("gene_id", "true_label")
+
+# We ONLY want the label and the features for the SVM
+# Column 2 is our target, Column 3 onwards are features
+cho_data <- cho[, -1] # Remove gene_id
+colnames(cho_data)[1] <- "Class"
+
+# CRITICAL: Convert to factor and make names valid (C1, C2...)
+cho_data$Class <- as.factor(cho_data$Class)
+levels(cho_data$Class) <- paste0("Class", levels(cho_data$Class))
+
+# RUN THE LOOP (three fold, t=3)
+set.seed(123)
+cho_results <- list(Acc = c(), F1 = c(), AUC = c())
+
+for(i in 1:3) {
+  # Split 80/20
+  trainIndex <- createDataPartition(cho_data$Class, p = 0.8, list = FALSE)
+  cho_train <- cho_data[trainIndex, ]
+  cho_test  <- cho_data[-trainIndex, ]
+  
+  # 3-fold CV Control
+  control_cho <- trainControl(method="cv", 
+                              number=3, 
+                              classProbs=TRUE, 
+                              summaryFunction=multiClassSummary)
+  
+  # Train SVM with PCA Preprocessing
+  # This uses the 'Class ~ .' notation which means "predict Class using all other columns"
+  svm_cho <- train(Class ~ ., 
+                   data = cho_train, 
+                   method = "svmRadial",
+                   preProcess = c("center", "scale", "pca"),
+                   trControl = control_cho,
+                   tuneLength = 5)
+  
+  # Evaluate using the helper function we built earlier
+  res <- evaluate_model(svm_cho, cho_test, cho_test$Class)
+  
+  cho_results$Acc[i] <- res$Accuracy
+  cho_results$F1[i]  <- res$F1
+  cho_results$AUC[i] <- res$AUC
+}
+
+# 3. FINAL OUTPUT
+cat("\n--- FINAL CHO RESULTS (Mean ± SD) ---\n")
+cat(sprintf("Accuracy: %.4f ± %.4f\n", mean(cho_results$Acc), sd(cho_results$Acc)))
+cat(sprintf("F1 Score: %.4f ± %.4f\n", mean(cho_results$F1), sd(cho_results$F1)))
+cat(sprintf("AUC:      %.4f ± %.4f\n", mean(cho_results$AUC), sd(cho_results$AUC)))
+
+```
+
+```{r}
+#install.packages("dslabs")
+# 1. LOAD DATA
+# If you don't have dslabs: install.packages("dslabs")
+library(dslabs)
+mnist <- read_mnist()
+
+# The pixels are in 'image' and labels in 'labels'
+x_train <- mnist$train$images / 255  # Normalize pixels to [0,1]
+y_train <- as.factor(mnist$train$labels)
+x_test  <- mnist$test$images / 255
+y_test  <- as.factor(mnist$test$labels)
+
+# 2. RENAME CLASSES FOR CARET
+# R needs names like "Digit0" instead of just "0" for probability math
+levels(y_train) <- paste0("Digit", levels(y_train))
+levels(y_test)  <- paste0("Digit", levels(y_test))
+
+# 3. DIMENSIONALITY REDUCTION (PCA)
+# PCA is essential here. SVM on 784 features is too slow.
+pca_mnist <- prcomp(x_train, rank. = 50) # Reduce to top 50 components
+train_pca <- as.data.frame(pca_mnist$x)
+train_pca$Class <- y_train
+
+# 4. SUBSET 10% FOR TUNING (As per assignment instructions)
+set.seed(123)
+valIndex <- createDataPartition(train_pca$Class, p = 0.1, list = FALSE)
+mnist_sub_train <- train_pca[valIndex, ] # This is your ~6,000 sample training set
+
+# 5. TRAIN SVM
+# We use the e1071 'svm' directly for large datasets as it's more memory efficient
+library(e1071)
+svm_mnist <- svm(Class ~ ., 
+                 data = mnist_sub_train, 
+                 kernel = "radial", 
+                 cost = 10, 
+                 gamma = 0.01, 
+                 probability = TRUE)
+
+# 6. EVAL ON FULL TEST SET
+evaluate_model <- function(model, test_data, test_labels) {
+  # 1. Get Class Predictions
+  preds <- predict(model, test_data)
+  
+  # 2. Get Probability Predictions (Specific to e1071 SVM)
+  pred_probs <- predict(model, test_data, probability = TRUE)
+  probs <- attr(pred_probs, "probabilities")
+  
+  # 3. Calculate Accuracy
+  acc <- mean(preds == test_labels)
+  
+  # 4. Calculate F1 Score (using MLmetrics)
+  # We use 'macro' or 'micro' averaging for multi-class
+  f1 <- F1_Score(y_pred = preds, y_true = test_labels)
+  
+  # 5. Calculate Multi-class AUC
+  # multiclass.roc needs the labels and the matrix of probabilities
+  roc_obj <- multiclass.roc(test_labels, probs)
+  auc_val <- as.numeric(auc(roc_obj))
+  
+  return(list(Accuracy = acc, F1 = f1, AUC = auc_val))
+}
+
+test_pca <- as.data.frame(predict(pca_mnist, x_test))
+mnist_results <- evaluate_model(svm_mnist, test_pca, y_test)
+
+# 7. DISPLAY RESULTS
+cat("\n--- MNIST SVM Results (10% subset + PCA) ---\n")
+print(as.data.frame(mnist_results))
+```
+
