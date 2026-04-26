@@ -1,8 +1,8 @@
 """
 Random Forest on MNIST (large dataset) per course workflow:
 
-- Hyperparameter tuning uses 90% of the official *training* set for learning and
-  10% as a held-out *validation* set. The official MNIST *test* set is never used
+- Hyperparameter tuning uses 80% of the official *training* set for learning and
+  20% as a held-out *validation* set. The official MNIST *test* set is never used
   during tuning.
 - After selecting hyperparameters, the final model is refit on **all** official
   training images, then evaluated on the official test split.
@@ -174,7 +174,7 @@ def _format_params(p: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     random_state = 347
-    val_fraction = 0.10
+    val_fraction = 0.20
     for arg in argv:
         if arg.startswith("--random-state="):
             random_state = int(arg.split("=", 1)[1])
