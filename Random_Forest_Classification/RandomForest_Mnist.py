@@ -1,5 +1,5 @@
 """
-Random Forest on MNIST (large dataset) per course workflow:
+Random Forest on MNIST:
 
 - Hyperparameter tuning uses 80% of the official *training* set for learning and
   20% as a held-out *validation* set. The official MNIST *test* set is never used
@@ -9,7 +9,7 @@ Random Forest on MNIST (large dataset) per course workflow:
 - Metrics on the test set: Accuracy, macro F1, and multi-class AUC-ROC (OvR,
   macro-averaged), consistent with common multi-class AUC practice.
 
-Dependencies: pip install numpy scikit-learn
+Dependencies i needed to install: pip install numpy scikit-learn
 
 Run from repository root:
   python Random_Forest_Classification/RandomForest_Mnist.py

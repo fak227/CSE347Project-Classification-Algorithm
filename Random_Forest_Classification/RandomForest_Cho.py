@@ -1,19 +1,15 @@
 """
-Random Forest on Cho dataset (small-dataset workflow).
-
+Random Forest on Cho dataset:
 Assignment-aligned protocol:
-- Create train/test split from Cho (no official split provided).
-- Hyperparameter tuning uses K-fold CV on training set only (default K=3).
+- Create train/test split from Cho.
+- Hyperparameter tuning uses K-fold CV on training set only K=3.
 - Repeat full experiment t=3 times with different random seeds.
-- Report mean and std on TEST metrics: Accuracy, macro F1, and AUC.
 
-Dependencies:
+Dependencies i needed to install:
   pip install numpy scikit-learn
 
 Run from repository root:
   python Random_Forest_Classification/RandomForest_Cho.py
-Optional flags:
-  --k=3 --t=3 --test-size=0.2
 """
 
 from __future__ import annotations
