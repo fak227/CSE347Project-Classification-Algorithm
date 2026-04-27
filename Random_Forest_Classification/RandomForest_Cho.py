@@ -79,7 +79,8 @@ def build_search(k: int, seed: int) -> GridSearchCV:
                 "rf",
                 RandomForestClassifier(
                     random_state=seed,
-                    n_jobs=-1,
+                    # Avoid nested process pools on Windows during GridSearchCV.
+                    n_jobs=1,
                 ),
             ),
         ]
@@ -110,7 +111,8 @@ def build_search(k: int, seed: int) -> GridSearchCV:
         param_grid=param_grid,
         scoring="accuracy",
         cv=cv,
-        n_jobs=-1,
+        # Keep GridSearchCV single-process for stability in this environment.
+        n_jobs=1,
         refit=True,
         verbose=0,
     )
